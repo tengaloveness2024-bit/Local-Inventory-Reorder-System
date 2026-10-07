@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Reports</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #1f4e79;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        header h1 {
+            margin: 0 0 5px;
+        }
+
+        nav {
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            text-decoration: none;
+            margin-right: 15px;
+            color: #1f4e79;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 25px auto;
+            padding: 0 15px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #1f4e79;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            font-size: 15px;
+            color: #666;
+        }
+
+        .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        .table-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #1f4e79;
+            color: white;
+        }
+
+        .low {
+            color: #b00020;
+            font-weight: bold;
+        }
+
+        .normal {
+            color: #187a3d;
+            font-weight: bold;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #a00000;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        @media (max-width: 800px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 500px) {
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            nav a {
+                display: inline-block;
+                margin-bottom: 8px;
+            }
+        }
+
+        @media print {
+            nav,
+            .actions {
+                display: none;
+            }
+
+            body {
+                background: white;
+            }
+
+            .card,
+            .table-box {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Inventory Reports</h1>
+    <p>Local Inventory & Automated Reorder Management System</p>
+</header>
+
+<nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/products.html">Products</a>
+    <a href="/suppliers.html">Suppliers</a>
+    <a href="/stock_in.html">Stock In</a>
+    <a href="/stock_out.html">Stock Out</a>
+    <a href="/reorders.html">Reorders</a>
+    <a href="/reports.html">Reports</a>
+    <a href="/admin.html">Admin</a>
+</nav>
+
+<div class="container">
+
+    <div class="actions">
+        <button onclick="loadReport()">Refresh Report</button>
+        <button onclick="window.print()">Print Report</button>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <div class="cards">
+
+        <div class="card">
+            <h3>Total Products</h3>
+            <div class="number" id="totalProducts">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Stock Units</h3>
+            <div class="number" id="totalUnits">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Low Stock Products</h3>
+            <div class="number" id="lowStock">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Stock Value</h3>
+            <div class="number" id="stockValue">$0.00</div>
+        </div>
+
+    </div>
+
+    <div class="table-box">
+        <h2>Stock Status Report</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Reorder Level</th>
+                    <th>Unit Price</th>
+                    <th>Stock Value</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody id="reportTable">
+                <tr>
+                    <td colspan="8">Loading report...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+
+async function loadReport() {
+
+    const errorBox = document.getElementById("error");
+    errorBox.style.display = "none";
+
+    try {
+
+        const response = await fetch("/api/reports/stock");
+
+        if (!response.ok) {
+            throw new Error("Could not load inventory report.");
+        }
+
+        const data = await response.json();
+
+        const products = data.products || data;
+
+        let totalProducts = products.length;
+        let totalUnits = 0;
+        let lowStock = 0;
+        let stockValue = 0;
+
+        const table = document.getElementById("reportTable");
+
+        if (products.length === 0) {
+            table.innerHTML =
+                '<tr><td colspan="8">No products found.</td></tr>';
+        } else {
+
+            table.innerHTML = "";
+
+            products.forEach(product => {
+
+                const quantity = Number(product.quantity) || 0;
+                const reorderLevel = Number(product.reorder_level) || 0;
+                const unitPrice = Number(product.unit_price) || 0;
+
+                const value = quantity * unitPrice;
+
+                totalUnits += quantity;
+                stockValue += value;
+
+                const isLow = quantity <= reorderLevel;
+
+                if (isLow) {
+                    lowStock++;
+                }
+
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+                    <td>${escapeHTML(product.product_code)}</td>
+                    <td>${escapeHTML(product.name)}</td>
+                    <td>${escapeHTML(product.category || "")}</td>
+                    <td>${quantity}</td>
+                    <td>${reorderLevel}</td>
+                    <td>$${unitPrice.toFixed(2)}</td>
+                    <td>$${value.toFixed(2)}</td>
+                    <td class="${isLow ? "low" : "normal"}">
+                        ${isLow ? "LOW STOCK" : "NORMAL"}
+                    </td>
+                `;
+
+                table.appendChild(row);
+            });
+        }
+
+        document.getElementById("totalProducts").textContent =
+            totalProducts;
+
+        document.getElementById("totalUnits").textContent =
+            totalUnits;
+
+        document.getElementById("lowStock").textContent =
+            lowStock;
+
+        document.getElementById("stockValue").textContent =
+            "$" + stockValue.toFixed(2);
+
+    } catch (error) {
+
+        errorBox.textContent = error.message;
+        errorBox.style.display = "block";
+    }
+}
+
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+loadReport();
+
+</script>
+
+</body>
+</html>

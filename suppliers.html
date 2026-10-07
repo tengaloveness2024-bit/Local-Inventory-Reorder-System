@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suppliers - Inventory System</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+        }
+
+        header {
+            background: #17365d;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        nav {
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            color: #17365d;
+            text-decoration: none;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 25px;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #17365d;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        input {
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .save {
+            background: #17365d;
+            color: white;
+        }
+
+        .delete {
+            background: #d9534f;
+            color: white;
+        }
+
+        .search {
+            max-width: 350px;
+            margin-bottom: 15px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 650px;
+        }
+
+        th, td {
+            padding: 11px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #17365d;
+            color: white;
+        }
+
+        #message {
+            display: none;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        @media(max-width:600px) {
+
+            .container {
+                padding: 12px;
+            }
+
+            nav a {
+                display: block;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Supplier Management</h1>
+</header>
+
+<nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/products.html">Products</a>
+    <a href="/suppliers.html">Suppliers</a>
+    <a href="/stock_in.html">Stock In</a>
+    <a href="/stock_out.html">Stock Out</a>
+    <a href="/reorders.html">Reorders</a>
+    <a href="/reports.html">Reports</a>
+    <a href="/admin.html">Admin</a>
+</nav>
+
+<div class="container">
+
+    <div id="message"></div>
+
+    <div class="panel">
+
+        <h2>Add Supplier</h2>
+
+        <form id="supplierForm">
+
+            <input
+                type="text"
+                id="name"
+                placeholder="Supplier Name"
+                required
+            >
+
+            <input
+                type="text"
+                id="contact"
+                placeholder="Contact Number"
+                required
+            >
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Email Address"
+            >
+
+            <input
+                type="text"
+                id="address"
+                placeholder="Address"
+            >
+
+            <button class="save" type="submit">
+                Add Supplier
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="panel">
+
+        <h2>Supplier List</h2>
+
+        <input
+            class="search"
+            id="search"
+            type="text"
+            placeholder="Search suppliers..."
+            onkeyup="filterSuppliers()"
+        >
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="supplierTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+let suppliers = [];
+
+
+/* MESSAGE */
+
+function showMessage(message, success = true) {
+
+    const box =
+        document.getElementById("message");
+
+    box.textContent = message;
+    box.style.display = "block";
+
+    box.style.background =
+        success ? "#dff0d8" : "#f2dede";
+
+    box.style.color =
+        success ? "#3c763d" : "#a94442";
+
+    setTimeout(() => {
+        box.style.display = "none";
+    }, 4000);
+}
+
+
+/* LOAD SUPPLIERS */
+
+async function loadSuppliers() {
+
+    try {
+
+        const response =
+            await fetch("/api/suppliers");
+
+        if (response.status === 401) {
+
+            window.location.href =
+                "/login.html";
+
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error("Failed to load suppliers");
+        }
+
+        suppliers =
+            await response.json();
+
+        displaySuppliers(suppliers);
+
+    } catch (error) {
+
+        showMessage(
+            "Unable to load suppliers.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* DISPLAY */
+
+function displaySuppliers(list) {
+
+    const table =
+        document.getElementById("supplierTable");
+
+    table.innerHTML = "";
+
+    if (list.length === 0) {
+
+        table.innerHTML =
+            `<tr>
+                <td colspan="5">
+                    No suppliers found.
+                </td>
+            </tr>`;
+
+        return;
+    }
+
+    list.forEach(supplier => {
+
+        const row =
+            document.createElement("tr");
+
+        row.innerHTML = `
+
+            <td>${escapeHTML(supplier.name)}</td>
+
+            <td>${escapeHTML(supplier.contact)}</td>
+
+            <td>${escapeHTML(supplier.email || "")}</td>
+
+            <td>${escapeHTML(supplier.address || "")}</td>
+
+            <td>
+                <button
+                    class="delete"
+                    onclick="deleteSupplier(${supplier.id})"
+                >
+                    Delete
+                </button>
+            </td>
+        `;
+
+        table.appendChild(row);
+    });
+}
+
+
+/* ADD SUPPLIER */
+
+document.getElementById("supplierForm")
+.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById("name")
+        .value
+        .trim();
+
+    const contact =
+        document.getElementById("contact")
+        .value
+        .trim();
+
+    const email =
+        document.getElementById("email")
+        .value
+        .trim();
+
+    const address =
+        document.getElementById("address")
+        .value
+        .trim();
+
+
+    if (!name || !contact) {
+
+        showMessage(
+            "Supplier name and contact are required.",
+            false
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch("/api/suppliers", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    name: name,
+                    contact: contact,
+                    email: email,
+                    address: address
+                })
+            });
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error ||
+                "Could not add supplier.",
+                false
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            "Supplier added successfully."
+        );
+
+        document.getElementById("supplierForm")
+            .reset();
+
+        loadSuppliers();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error. Make sure Flask is running.",
+            false
+        );
+
+        console.error(error);
+    }
+
+});
+
+
+/* DELETE */
+
+async function deleteSupplier(id) {
+
+    if (!confirm(
+        "Are you sure you want to delete this supplier?"
+    )) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/suppliers/" + id,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error ||
+                "Could not delete supplier.",
+                false
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            "Supplier deleted successfully."
+        );
+
+        loadSuppliers();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error while deleting supplier.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* SEARCH */
+
+function filterSuppliers() {
+
+    const search =
+        document.getElementById("search")
+        .value
+        .toLowerCase();
+
+    const filtered =
+        suppliers.filter(supplier =>
+
+            (supplier.name || "")
+                .toLowerCase()
+                .includes(search)
+
+            ||
+
+            (supplier.contact || "")
+                .toLowerCase()
+                .includes(search)
+
+            ||
+
+            (supplier.email || "")
+                .toLowerCase()
+                .includes(search)
+        );
+
+    displaySuppliers(filtered);
+}
+
+
+/* SECURITY */
+
+function escapeHTML(value) {
+
+    if (value === null ||
+        value === undefined) {
+
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* START */
+
+loadSuppliers();
+
+</script>
+
+</body>
+</html>

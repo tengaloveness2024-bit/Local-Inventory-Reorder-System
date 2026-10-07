@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Reorders</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+        }
+
+        header {
+            background: #17365d;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        nav {
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            color: #17365d;
+            text-decoration: none;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 25px;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #17365d;
+        }
+
+        .description {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        button {
+            padding: 11px 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .check {
+            background: #17365d;
+            color: white;
+        }
+
+        .ordered {
+            background: #f0ad4e;
+            color: white;
+        }
+
+        .received {
+            background: #5cb85c;
+            color: white;
+        }
+
+        .cancel {
+            background: #d9534f;
+            color: white;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th,
+        td {
+            padding: 11px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #17365d;
+            color: white;
+        }
+
+        .pending {
+            color: #f0ad4e;
+            font-weight: bold;
+        }
+
+        .status-ordered {
+            color: #d58512;
+            font-weight: bold;
+        }
+
+        .status-received {
+            color: #398439;
+            font-weight: bold;
+        }
+
+        .status-cancelled {
+            color: #ac2925;
+            font-weight: bold;
+        }
+
+        #message {
+            display: none;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .low-stock-list {
+            padding: 0;
+            list-style: none;
+        }
+
+        .low-stock-list li {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .low-stock-list strong {
+            color: #d9534f;
+        }
+
+        @media(max-width:600px) {
+
+            .container {
+                padding: 12px;
+            }
+
+            nav a {
+                display: block;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Automated Reorder Management</h1>
+</header>
+
+<nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/products.html">Products</a>
+    <a href="/suppliers.html">Suppliers</a>
+    <a href="/stock_in.html">Stock In</a>
+    <a href="/stock_out.html">Stock Out</a>
+    <a href="/reorders.html">Reorders</a>
+    <a href="/reports.html">Reports</a>
+    <a href="/admin.html">Admin</a>
+</nav>
+
+<div class="container">
+
+    <div id="message"></div>
+
+    <div class="panel">
+
+        <h2>Automatic Low-Stock Detection</h2>
+
+        <p class="description">
+            The system checks inventory quantities against each
+            product's reorder level. Products at or below the
+            reorder level are identified and a pending reorder
+            can be generated automatically.
+        </p>
+
+        <button
+            class="check"
+            onclick="checkReorders()"
+        >
+            Check Low Stock & Create Reorders
+        </button>
+
+    </div>
+
+
+    <div class="panel">
+
+        <h2>Current Low-Stock Products</h2>
+
+        <ul
+            id="lowStockList"
+            class="low-stock-list"
+        >
+            <li>Loading...</li>
+        </ul>
+
+    </div>
+
+
+    <div class="panel">
+
+        <h2>Reorder Requests</h2>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity to Order</th>
+                        <th>Supplier</th>
+                        <th>Status</th>
+                        <th>Reorder Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody id="reorderTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+let products = [];
+let reorders = [];
+let suppliers = [];
+
+
+/* MESSAGE */
+
+function showMessage(message, success = true) {
+
+    const box =
+        document.getElementById("message");
+
+    box.textContent = message;
+
+    box.style.display = "block";
+
+    box.style.background =
+        success ? "#dff0d8" : "#f2dede";
+
+    box.style.color =
+        success ? "#3c763d" : "#a94442";
+
+    setTimeout(() => {
+        box.style.display = "none";
+    }, 5000);
+}
+
+
+/* LOAD PRODUCTS */
+
+async function loadProducts() {
+
+    const response =
+        await fetch("/api/products");
+
+    if (response.status === 401) {
+
+        window.location.href =
+            "/login.html";
+
+        return;
+    }
+
+    products =
+        await response.json();
+
+    displayLowStock();
+}
+
+
+/* LOAD SUPPLIERS */
+
+async function loadSuppliers() {
+
+    const response =
+        await fetch("/api/suppliers");
+
+    if (!response.ok) {
+        return;
+    }
+
+    suppliers =
+        await response.json();
+}
+
+
+/* LOW STOCK */
+
+function displayLowStock() {
+
+    const list =
+        document.getElementById("lowStockList");
+
+    const lowStock =
+        products.filter(product =>
+            Number(product.quantity) <=
+            Number(product.reorder_level)
+        );
+
+    list.innerHTML = "";
+
+    if (lowStock.length === 0) {
+
+        list.innerHTML =
+            "<li>No products are currently below the reorder level.</li>";
+
+        return;
+    }
+
+    lowStock.forEach(product => {
+
+        const li =
+            document.createElement("li");
+
+        li.innerHTML =
+            `<strong>${escapeHTML(product.name)}</strong>
+             — Current stock: ${product.quantity},
+             Reorder level: ${product.reorder_level},
+             Recommended order: ${product.reorder_quantity}`;
+
+        list.appendChild(li);
+    });
+}
+
+
+/* CHECK AND CREATE REORDERS */
+
+async function checkReorders() {
+
+    try {
+
+        const response =
+            await fetch("/api/reorders/check", {
+
+                method: "POST"
+            });
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error ||
+                "Could not check reorders.",
+                false
+            );
+
+            return;
+        }
+
+
+        const count =
+            result.created ?? 0;
+
+
+        showMessage(
+            count > 0
+                ? count +
+                  " new reorder request(s) created automatically."
+                : "No new reorder requests were required."
+        );
+
+
+        loadReorders();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error while checking reorders.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* LOAD REORDERS */
+
+async function loadReorders() {
+
+    try {
+
+        const response =
+            await fetch("/api/reorders");
+
+        if (response.status === 401) {
+
+            window.location.href =
+                "/login.html";
+
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error("Could not load reorders");
+        }
+
+        reorders =
+            await response.json();
+
+        displayReorders();
+
+    } catch (error) {
+
+        showMessage(
+            "Unable to load reorder requests.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* DISPLAY REORDERS */
+
+function displayReorders() {
+
+    const table =
+        document.getElementById("reorderTable");
+
+    table.innerHTML = "";
+
+    if (reorders.length === 0) {
+
+        table.innerHTML =
+            `<tr>
+                <td colspan="6">
+                    No reorder requests found.
+                </td>
+            </tr>`;
+
+        return;
+    }
+
+
+    reorders.forEach(reorder => {
+
+        const product =
+            products.find(
+                p => p.id == reorder.product_id
+            );
+
+
+        const supplier =
+            product
+            ? suppliers.find(
+                s => s.id == product.supplier_id
+              )
+            : null;
+
+
+        const productName =
+            product
+            ? product.name
+            : "Unknown product";
+
+
+        const supplierName =
+            supplier
+            ? supplier.name
+            : "Not assigned";
+
+
+        const statusClass =
+            reorder.status === "Pending"
+                ? "pending"
+                : reorder.status === "Ordered"
+                    ? "status-ordered"
+                    : reorder.status === "Received"
+                        ? "status-received"
+                        : "status-cancelled";
+
+
+        const row =
+            document.createElement("tr");
+
+
+        row.innerHTML = `
+
+            <td>
+                ${escapeHTML(productName)}
+            </td>
+
+            <td>
+                ${reorder.quantity}
+            </td>
+
+            <td>
+                ${escapeHTML(supplierName)}
+            </td>
+
+            <td class="${statusClass}">
+                ${escapeHTML(reorder.status)}
+            </td>
+
+            <td>
+                ${escapeHTML(reorder.reorder_date || "")}
+            </td>
+
+            <td>
+
+                ${
+                    reorder.status === "Pending"
+                    ? `
+                        <button
+                            class="ordered"
+                            onclick="updateStatus(${reorder.id}, 'Ordered')"
+                        >
+                            Mark Ordered
+                        </button>
+
+                        <button
+                            class="cancel"
+                            onclick="updateStatus(${reorder.id}, 'Cancelled')"
+                        >
+                            Cancel
+                        </button>
+                    `
+                    : ""
+                }
+
+                ${
+                    reorder.status === "Ordered"
+                    ? `
+                        <button
+                            class="received"
+                            onclick="updateStatus(${reorder.id}, 'Received')"
+                        >
+                            Mark Received
+                        </button>
+                    `
+                    : ""
+                }
+
+            </td>
+        `;
+
+
+        table.appendChild(row);
+
+    });
+}
+
+
+/* UPDATE STATUS */
+
+async function updateStatus(id, status) {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/reorders/" + id,
+                {
+
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        status: status
+                    })
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error ||
+                "Could not update reorder.",
+                false
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            "Reorder status updated to " +
+            status + "."
+        );
+
+
+        loadReorders();
+
+        loadProducts();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error while updating reorder.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* SECURITY */
+
+function escapeHTML(value) {
+
+    if (value === null ||
+        value === undefined) {
+
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* START */
+
+async function startPage() {
+
+    await loadSuppliers();
+
+    await loadProducts();
+
+    await loadReorders();
+
+}
+
+startPage();
+
+</script>
+
+</body>
+</html>

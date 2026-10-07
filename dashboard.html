@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #17365d;
+            color: white;
+            padding: 18px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        button {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .logout {
+            background: #d9534f;
+            color: white;
+        }
+
+        nav {
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #17365d;
+            font-weight: bold;
+            margin-right: 18px;
+        }
+
+        .container {
+            padding: 25px;
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .welcome {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #555;
+        }
+
+        .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #17365d;
+        }
+
+        .low {
+            color: #d9534f;
+        }
+
+        .pending {
+            color: #f0ad4e;
+        }
+
+        .links {
+            margin-top: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .links a {
+            background: #17365d;
+            color: white;
+            padding: 15px;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            nav a {
+                display: block;
+                margin-bottom: 10px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Local Inventory & Automated Reorder Management System</h1>
+    <button class="logout" onclick="logout()">Logout</button>
+</header>
+
+<nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/products.html">Products</a>
+    <a href="/suppliers.html">Suppliers</a>
+    <a href="/stock_in.html">Stock In</a>
+    <a href="/stock_out.html">Stock Out</a>
+    <a href="/reorders.html">Reorders</a>
+    <a href="/reports.html">Reports</a>
+    <a href="/admin.html">Admin</a>
+</nav>
+
+<div class="container">
+
+    <div class="welcome">
+        <h2>Inventory Dashboard</h2>
+        <p id="welcomeText">Loading system information...</p>
+    </div>
+
+    <div class="cards">
+
+        <div class="card">
+            <h3>Total Products</h3>
+            <div class="number" id="totalProducts">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Low Stock Items</h3>
+            <div class="number low" id="lowStock">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Pending Reorders</h3>
+            <div class="number pending" id="pendingReorders">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Stock Value</h3>
+            <div class="number" id="stockValue">$0.00</div>
+        </div>
+
+    </div>
+
+    <div class="links">
+        <a href="/products.html">Manage Products</a>
+        <a href="/suppliers.html">Manage Suppliers</a>
+        <a href="/stock_in.html">Record Stock In</a>
+        <a href="/stock_out.html">Record Stock Out</a>
+        <a href="/reorders.html">Manage Reorders</a>
+        <a href="/reports.html">View Reports</a>
+        <a href="/admin.html">Administration</a>
+    </div>
+
+</div>
+
+<script>
+
+async function loadDashboard() {
+
+    try {
+
+        const response = await fetch("/api/dashboard");
+
+        if (!response.ok) {
+            throw new Error("Unable to load dashboard");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("totalProducts").textContent =
+            data.total_products ?? 0;
+
+        document.getElementById("lowStock").textContent =
+            data.low_stock ?? 0;
+
+        document.getElementById("pendingReorders").textContent =
+            data.pending_reorders ?? 0;
+
+        document.getElementById("stockValue").textContent =
+            "$" + Number(data.stock_value ?? 0).toFixed(2);
+
+        document.getElementById("welcomeText").textContent =
+            "Welcome to the inventory management system.";
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById("welcomeText").textContent =
+            "Dashboard loaded, but some information could not be retrieved.";
+
+    }
+}
+
+
+async function logout() {
+
+    try {
+
+        await fetch("/api/logout", {
+            method: "POST"
+        });
+
+    } catch (error) {
+        console.error(error);
+    }
+
+    window.location.href = "/login.html";
+}
+
+
+loadDashboard();
+
+</script>
+
+</body>
+</html>

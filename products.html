@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products - Inventory System</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #17365d;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        nav {
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            color: #17365d;
+            text-decoration: none;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 25px;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #17365d;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .save {
+            background: #17365d;
+            color: white;
+        }
+
+        .cancel {
+            background: #777;
+            color: white;
+        }
+
+        .edit {
+            background: #f0ad4e;
+            color: white;
+            margin-right: 5px;
+        }
+
+        .delete {
+            background: #d9534f;
+            color: white;
+        }
+
+        .search {
+            margin-bottom: 15px;
+            max-width: 350px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th, td {
+            padding: 11px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #17365d;
+            color: white;
+        }
+
+        .low-stock {
+            color: #d9534f;
+            font-weight: bold;
+        }
+
+        .normal-stock {
+            color: green;
+            font-weight: bold;
+        }
+
+        #message {
+            padding: 10px;
+            margin-bottom: 15px;
+            display: none;
+            border-radius: 5px;
+        }
+
+        @media(max-width:600px) {
+            .container {
+                padding: 12px;
+            }
+
+            nav a {
+                display: block;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Product & Inventory Management</h1>
+</header>
+
+<nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/products.html">Products</a>
+    <a href="/suppliers.html">Suppliers</a>
+    <a href="/stock_in.html">Stock In</a>
+    <a href="/stock_out.html">Stock Out</a>
+    <a href="/reorders.html">Reorders</a>
+    <a href="/reports.html">Reports</a>
+    <a href="/admin.html">Admin</a>
+</nav>
+
+<div class="container">
+
+    <div id="message"></div>
+
+    <div class="panel">
+        <h2 id="formTitle">Add New Product</h2>
+
+        <form id="productForm">
+
+            <input type="hidden" id="productId">
+
+            <input
+                type="text"
+                id="productCode"
+                placeholder="Product Code"
+                required
+            >
+
+            <input
+                type="text"
+                id="productName"
+                placeholder="Product Name"
+                required
+            >
+
+            <input
+                type="text"
+                id="category"
+                placeholder="Category"
+                required
+            >
+
+            <input
+                type="number"
+                id="quantity"
+                placeholder="Quantity"
+                min="0"
+                required
+            >
+
+            <input
+                type="number"
+                id="reorderLevel"
+                placeholder="Reorder Level"
+                min="0"
+                required
+            >
+
+            <input
+                type="number"
+                id="reorderQuantity"
+                placeholder="Reorder Quantity"
+                min="1"
+                required
+            >
+
+            <input
+                type="number"
+                id="unitPrice"
+                placeholder="Unit Price"
+                min="0"
+                step="0.01"
+                required
+            >
+
+            <select id="supplierId">
+                <option value="">Select Supplier</option>
+            </select>
+
+            <button class="save" type="submit">Save Product</button>
+
+            <button
+                class="cancel"
+                type="button"
+                onclick="resetForm()"
+            >
+                Clear
+            </button>
+
+        </form>
+    </div>
+
+    <div class="panel">
+
+        <h2>Product List</h2>
+
+        <input
+            class="search"
+            type="text"
+            id="search"
+            placeholder="Search products..."
+            onkeyup="filterProducts()"
+        >
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Quantity</th>
+                        <th>Reorder Level</th>
+                        <th>Reorder Qty</th>
+                        <th>Supplier</th>
+                        <th>Unit Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody id="productTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let products = [];
+let suppliers = [];
+
+
+/* SHOW MESSAGE */
+
+function showMessage(message, success = true) {
+
+    const box = document.getElementById("message");
+
+    box.textContent = message;
+    box.style.display = "block";
+
+    box.style.background = success ? "#dff0d8" : "#f2dede";
+    box.style.color = success ? "#3c763d" : "#a94442";
+
+    setTimeout(() => {
+        box.style.display = "none";
+    }, 4000);
+}
+
+
+/* LOAD SUPPLIERS */
+
+async function loadSuppliers() {
+
+    const response = await fetch("/api/suppliers");
+
+    if (!response.ok) {
+        return;
+    }
+
+    suppliers = await response.json();
+
+    const select = document.getElementById("supplierId");
+
+    select.innerHTML =
+        '<option value="">Select Supplier</option>';
+
+    suppliers.forEach(supplier => {
+
+        const option = document.createElement("option");
+
+        option.value = supplier.id;
+        option.textContent = supplier.name;
+
+        select.appendChild(option);
+    });
+}
+
+
+/* LOAD PRODUCTS */
+
+async function loadProducts() {
+
+    try {
+
+        const response = await fetch("/api/products");
+
+        if (!response.ok) {
+
+            if (response.status === 401) {
+                window.location.href = "/login.html";
+                return;
+            }
+
+            throw new Error("Could not load products");
+        }
+
+        products = await response.json();
+
+        displayProducts(products);
+
+    } catch (error) {
+
+        showMessage(
+            "Unable to load products from the database.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* DISPLAY PRODUCTS */
+
+function displayProducts(list) {
+
+    const table = document.getElementById("productTable");
+
+    table.innerHTML = "";
+
+    if (list.length === 0) {
+
+        table.innerHTML =
+            '<tr><td colspan="10">No products found.</td></tr>';
+
+        return;
+    }
+
+    list.forEach(product => {
+
+        const row = document.createElement("tr");
+
+        const lowStock =
+            Number(product.quantity) <=
+            Number(product.reorder_level);
+
+        const supplier =
+            suppliers.find(s => s.id == product.supplier_id);
+
+        const supplierName =
+            supplier ? supplier.name : "Not assigned";
+
+        row.innerHTML = `
+
+            <td>${escapeHTML(product.product_code)}</td>
+
+            <td>${escapeHTML(product.name)}</td>
+
+            <td>${escapeHTML(product.category)}</td>
+
+            <td>${product.quantity}</td>
+
+            <td>${product.reorder_level}</td>
+
+            <td>${product.reorder_quantity}</td>
+
+            <td>${escapeHTML(supplierName)}</td>
+
+            <td>$${Number(product.unit_price).toFixed(2)}</td>
+
+            <td class="${lowStock ? "low-stock" : "normal-stock"}">
+                ${lowStock ? "LOW STOCK" : "OK"}
+            </td>
+
+            <td>
+                <button
+                    class="edit"
+                    onclick="editProduct(${product.id})"
+                >
+                    Edit
+                </button>
+
+                <button
+                    class="delete"
+                    onclick="deleteProduct(${product.id})"
+                >
+                    Delete
+                </button>
+            </td>
+        `;
+
+        table.appendChild(row);
+    });
+}
+
+
+/* ADD / UPDATE PRODUCT */
+
+document.getElementById("productForm")
+.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const id =
+        document.getElementById("productId").value;
+
+    const data = {
+
+        product_code:
+            document.getElementById("productCode").value.trim(),
+
+        name:
+            document.getElementById("productName").value.trim(),
+
+        category:
+            document.getElementById("category").value.trim(),
+
+        quantity:
+            Number(document.getElementById("quantity").value),
+
+        reorder_level:
+            Number(document.getElementById("reorderLevel").value),
+
+        reorder_quantity:
+            Number(document.getElementById("reorderQuantity").value),
+
+        supplier_id:
+            document.getElementById("supplierId").value
+                ? Number(document.getElementById("supplierId").value)
+                : null,
+
+        unit_price:
+            Number(document.getElementById("unitPrice").value)
+    };
+
+
+    /* FRONT-END VALIDATION */
+
+    if (!data.product_code ||
+        !data.name ||
+        !data.category) {
+
+        showMessage(
+            "Please complete all required fields.",
+            false
+        );
+
+        return;
+    }
+
+    if (data.quantity < 0) {
+
+        showMessage(
+            "Quantity cannot be negative.",
+            false
+        );
+
+        return;
+    }
+
+    if (data.reorder_level < 0) {
+
+        showMessage(
+            "Reorder level cannot be negative.",
+            false
+        );
+
+        return;
+    }
+
+    if (data.reorder_quantity <= 0) {
+
+        showMessage(
+            "Reorder quantity must be greater than zero.",
+            false
+        );
+
+        return;
+    }
+
+    if (data.unit_price < 0) {
+
+        showMessage(
+            "Unit price cannot be negative.",
+            false
+        );
+
+        return;
+    }
+
+
+    try {
+
+        let url = "/api/products";
+        let method = "POST";
+
+        if (id) {
+
+            url = "/api/products/" + id;
+            method = "PUT";
+        }
+
+        const response = await fetch(url, {
+
+            method: method,
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(data)
+        });
+
+
+        const result = await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error || "Operation failed.",
+                false
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            id
+                ? "Product updated successfully."
+                : "Product added successfully."
+        );
+
+        resetForm();
+
+        loadProducts();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error. Please check that Flask is running.",
+            false
+        );
+
+        console.error(error);
+    }
+
+});
+
+
+/* EDIT PRODUCT */
+
+function editProduct(id) {
+
+    const product =
+        products.find(p => p.id == id);
+
+    if (!product) {
+        return;
+    }
+
+    document.getElementById("productId").value =
+        product.id;
+
+    document.getElementById("productCode").value =
+        product.product_code;
+
+    document.getElementById("productName").value =
+        product.name;
+
+    document.getElementById("category").value =
+        product.category;
+
+    document.getElementById("quantity").value =
+        product.quantity;
+
+    document.getElementById("reorderLevel").value =
+        product.reorder_level;
+
+    document.getElementById("reorderQuantity").value =
+        product.reorder_quantity;
+
+    document.getElementById("unitPrice").value =
+        product.unit_price;
+
+    document.getElementById("supplierId").value =
+        product.supplier_id || "";
+
+    document.getElementById("formTitle").textContent =
+        "Edit Product";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+
+/* DELETE PRODUCT */
+
+async function deleteProduct(id) {
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to delete this product?"
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "/api/products/" + id,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error || "Could not delete product.",
+                false
+            );
+
+            return;
+        }
+
+        showMessage(
+            "Product deleted successfully."
+        );
+
+        loadProducts();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error while deleting product.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* CLEAR FORM */
+
+function resetForm() {
+
+    document.getElementById("productForm").reset();
+
+    document.getElementById("productId").value = "";
+
+    document.getElementById("formTitle").textContent =
+        "Add New Product";
+}
+
+
+/* SEARCH */
+
+function filterProducts() {
+
+    const search =
+        document.getElementById("search")
+        .value
+        .toLowerCase();
+
+    const filtered =
+        products.filter(product =>
+
+            product.product_code
+                .toLowerCase()
+                .includes(search)
+
+            ||
+
+            product.name
+                .toLowerCase()
+                .includes(search)
+
+            ||
+
+            product.category
+                .toLowerCase()
+                .includes(search)
+        );
+
+    displayProducts(filtered);
+}
+
+
+/* SECURITY: ESCAPE HTML */
+
+function escapeHTML(value) {
+
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* START */
+
+async function startPage() {
+
+    await loadSuppliers();
+
+    await loadProducts();
+}
+
+startPage();
+
+</script>
+
+</body>
+</html>

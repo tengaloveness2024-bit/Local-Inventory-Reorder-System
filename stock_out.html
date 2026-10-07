@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Out - Inventory System</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+        }
+
+        header {
+            background: #17365d;
+            color: white;
+            padding: 18px 25px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        nav {
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            color: #17365d;
+            text-decoration: none;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 25px;
+        }
+
+        .panel {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #17365d;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 20px;
+            background: #17365d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #message {
+            display: none;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #eef3f8;
+            border-radius: 5px;
+        }
+
+        .warning {
+            color: #a94442;
+            font-weight: bold;
+        }
+
+        @media(max-width:600px) {
+            .container {
+                padding: 12px;
+            }
+
+            nav a {
+                display: block;
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Stock Out / Issue Stock</h1>
+</header>
+
+<nav>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/products.html">Products</a>
+    <a href="/suppliers.html">Suppliers</a>
+    <a href="/stock_in.html">Stock In</a>
+    <a href="/stock_out.html">Stock Out</a>
+    <a href="/reorders.html">Reorders</a>
+    <a href="/reports.html">Reports</a>
+    <a href="/admin.html">Admin</a>
+</nav>
+
+<div class="container">
+
+    <div id="message"></div>
+
+    <div class="panel">
+
+        <h2>Record Stock Out</h2>
+
+        <form id="stockOutForm">
+
+            <label for="product">
+                Select Product
+            </label>
+
+            <select id="product" required>
+                <option value="">Select a product</option>
+            </select>
+
+            <div class="info">
+                Current Stock:
+                <strong id="currentStock">-</strong>
+            </div>
+
+            <label for="quantity">
+                Quantity Issued
+            </label>
+
+            <input
+                type="number"
+                id="quantity"
+                min="1"
+                required
+                placeholder="Enter quantity issued"
+            >
+
+            <p id="warning" class="warning"></p>
+
+            <button type="submit">
+                Record Stock Out
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+<script>
+
+let products = [];
+
+
+/* MESSAGE */
+
+function showMessage(message, success = true) {
+
+    const box =
+        document.getElementById("message");
+
+    box.textContent = message;
+    box.style.display = "block";
+
+    box.style.background =
+        success ? "#dff0d8" : "#f2dede";
+
+    box.style.color =
+        success ? "#3c763d" : "#a94442";
+}
+
+
+/* LOAD PRODUCTS */
+
+async function loadProducts() {
+
+    try {
+
+        const response =
+            await fetch("/api/products");
+
+        if (response.status === 401) {
+
+            window.location.href =
+                "/login.html";
+
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error("Unable to load products");
+        }
+
+        products =
+            await response.json();
+
+        const select =
+            document.getElementById("product");
+
+        select.innerHTML =
+            '<option value="">Select a product</option>';
+
+        products.forEach(product => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = product.id;
+
+            option.textContent =
+                product.product_code +
+                " - " +
+                product.name;
+
+            select.appendChild(option);
+        });
+
+    } catch (error) {
+
+        showMessage(
+            "Unable to load products.",
+            false
+        );
+
+        console.error(error);
+    }
+}
+
+
+/* PRODUCT SELECTION */
+
+document.getElementById("product")
+.addEventListener("change", function() {
+
+    const product =
+        products.find(
+            p => p.id == this.value
+        );
+
+    const currentStock =
+        document.getElementById("currentStock");
+
+    const warning =
+        document.getElementById("warning");
+
+    if (product) {
+
+        currentStock.textContent =
+            product.quantity;
+
+        warning.textContent =
+            product.quantity <= product.reorder_level
+            ? "Warning: This product is at or below its reorder level."
+            : "";
+
+    } else {
+
+        currentStock.textContent = "-";
+        warning.textContent = "";
+    }
+});
+
+
+/* SUBMIT */
+
+document.getElementById("stockOutForm")
+.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const productId =
+        document.getElementById("product").value;
+
+    const quantity =
+        Number(
+            document.getElementById("quantity").value
+        );
+
+
+    if (!productId) {
+
+        showMessage(
+            "Please select a product.",
+            false
+        );
+
+        return;
+    }
+
+
+    if (!Number.isInteger(quantity) ||
+        quantity <= 0) {
+
+        showMessage(
+            "Quantity must be a whole number greater than zero.",
+            false
+        );
+
+        return;
+    }
+
+
+    const product =
+        products.find(
+            p => p.id == productId
+        );
+
+
+    /* NEGATIVE STOCK PREVENTION */
+
+    if (!product) {
+
+        showMessage(
+            "Product not found.",
+            false
+        );
+
+        return;
+    }
+
+
+    if (quantity > Number(product.quantity)) {
+
+        showMessage(
+            "Transaction rejected: stock cannot become negative. Current stock is " +
+            product.quantity + ".",
+            false
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch("/api/stock-out", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    product_id: Number(productId),
+                    quantity: quantity
+                })
+            });
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error ||
+                "Stock-out failed.",
+                false
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            "Stock issued successfully. Inventory quantity has been updated."
+        );
+
+
+        document.getElementById("stockOutForm")
+            .reset();
+
+        document.getElementById("currentStock")
+            .textContent = "-";
+
+        document.getElementById("warning")
+            .textContent = "";
+
+
+        loadProducts();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error. Make sure Flask is running.",
+            false
+        );
+
+        console.error(error);
+    }
+
+});
+
+
+loadProducts();
+
+</script>
+
+</body>
+</html>
